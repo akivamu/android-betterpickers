@@ -340,6 +340,7 @@ public class RecurrencePickerDialogFragment extends DialogFragment implements On
             EventRecurrence.MONTHLY,
             EventRecurrence.YEARLY
     };
+    private static int[] mAllowedFreqs = mFreqModelToEventRecurrence;
 
     public static final String BUNDLE_START_TIME_MILLIS = "bundle_event_start_time";
     public static final String BUNDLE_TIME_ZONE = "bundle_event_time_zone";
@@ -395,6 +396,41 @@ public class RecurrencePickerDialogFragment extends DialogFragment implements On
     private OnRecurrenceSetListener mRecurrenceSetListener;
 
     public RecurrencePickerDialogFragment() {
+    }
+
+    public static void setAllowedEventRecurrences(int[] allowedEventRecurrences) {
+        mAllowedFreqs = new int[allowedEventRecurrences.length];
+
+        for (int i = 0; i < allowedEventRecurrences.length; i++) {
+            for (int j = 0; j < mFreqModelToEventRecurrence.length; j++) {
+                if (mFreqModelToEventRecurrence[j] == allowedEventRecurrences[i]) {
+                    mAllowedFreqs[i] = j;
+                    break;
+                }
+            }
+        }
+
+        Arrays.sort(mAllowedFreqs);
+    }
+
+    private CharSequence[] getAllowedFreqTextArray() {
+        CharSequence[] freqTextArray = getResources().getStringArray(R.array.recurrence_freq);
+
+        CharSequence[] allowedFreqTextArray = new CharSequence[mAllowedFreqs.length];
+        for (int i = 0; i < mAllowedFreqs.length; i++) {
+            allowedFreqTextArray[i] = freqTextArray[mAllowedFreqs[i]];
+        }
+
+        return allowedFreqTextArray;
+    }
+
+
+    private int findFreqPositionInSpinner(int freq) {
+        for (int i = 0; i < mAllowedFreqs.length; i++) {
+            if (mAllowedFreqs[i] == freq) return i;
+        }
+
+        return 0;
     }
 
     static public boolean isSupportedMonthlyByNthDayOfWeek(int num) {
@@ -730,8 +766,9 @@ public class RecurrencePickerDialogFragment extends DialogFragment implements On
         }
         mFreqSpinner = (Spinner) mView.findViewById(R.id.freqSpinner);
         mFreqSpinner.setOnItemSelectedListener(this);
-        ArrayAdapter<CharSequence> freqAdapter = ArrayAdapter.createFromResource(getActivity(),
-                R.array.recurrence_freq, R.layout.recurrencepicker_freq_item);
+        ArrayAdapter<CharSequence> freqAdapter = new ArrayAdapter<>(getActivity(),
+                R.layout.recurrencepicker_freq_item,
+                getAllowedFreqTextArray());
         freqAdapter.setDropDownViewResource(R.layout.recurrencepicker_freq_item);
         mFreqSpinner.setAdapter(freqAdapter);
 
@@ -1013,7 +1050,7 @@ public class RecurrencePickerDialogFragment extends DialogFragment implements On
             mInterval.setText(intervalStr);
         }
 
-        mFreqSpinner.setSelection(mModel.freq);
+        mFreqSpinner.setSelection(findFreqPositionInSpinner(mModel.freq));
         mWeekGroup.setVisibility(mModel.freq == RecurrenceModel.FREQ_WEEKLY ? View.VISIBLE : View.GONE);
         mWeekGroup2.setVisibility(mModel.freq == RecurrenceModel.FREQ_WEEKLY ? View.VISIBLE : View.GONE);
         mMonthGroup.setVisibility(mModel.freq == RecurrenceModel.FREQ_MONTHLY ? View.VISIBLE : View.GONE);
@@ -1161,7 +1198,7 @@ public class RecurrencePickerDialogFragment extends DialogFragment implements On
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         if (parent == mFreqSpinner) {
-            mModel.freq = position;
+            mModel.freq = mAllowedFreqs[position];
         } else if (parent == mEndSpinner) {
             switch (position) {
                 case RecurrenceModel.END_NEVER:
